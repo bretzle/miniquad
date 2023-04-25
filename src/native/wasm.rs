@@ -78,6 +78,12 @@ impl NativeDisplay for WasmDisplay {
     fn dropped_file_path(&mut self, index: usize) -> Option<PathBuf> {
         self.dropped_files.paths.get(index).cloned()
     }
+
+    fn set_title(&mut self, title: String) {
+        unsafe {
+            sapp_set_title(title.as_ptr().cast())
+        }
+    }
 }
 
 struct WasmGlobals {
@@ -175,6 +181,7 @@ extern "C" {
     pub fn console_error(msg: *const ::std::os::raw::c_char);
 
     pub fn sapp_set_clipboard(clipboard: *const i8, len: usize);
+    pub fn sapp_set_title(msg: *const ::std::os::raw::c_char);
 
     /// call "requestPointerLock" and "exitPointerLock" internally.
     /// Will hide cursor and will disable mouse_move events, but instead will

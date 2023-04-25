@@ -36,6 +36,7 @@ pub trait NativeDisplay: std::any::Any {
     fn show_mouse(&mut self, _shown: bool);
     fn set_mouse_cursor(&mut self, _cursor_icon: crate::CursorIcon);
     fn set_window_size(&mut self, _new_width: u32, _new_height: u32);
+    fn set_title(&mut self, _title: String);
     fn set_fullscreen(&mut self, _fullscreen: bool);
     fn clipboard_get(&mut self) -> Option<String>;
     fn clipboard_set(&mut self, _data: &str);

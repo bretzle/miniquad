@@ -1338,6 +1338,9 @@ var importObject = {
             canvas.width = new_width;
             canvas.height = new_height;
             resize(canvas, wasm_exports.resize);
+        },
+        sapp_set_title: function(title) {
+            document.title = UTF8ToString(ptr)
         }
     }
 };

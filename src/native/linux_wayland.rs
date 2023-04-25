@@ -43,6 +43,9 @@ pub(crate) struct WaylandDisplay {
 }
 
 impl crate::native::NativeDisplay for WaylandDisplay {
+    fn set_title(&mut self, _title: String) {
+        // todo
+    }
     fn screen_size(&self) -> (f32, f32) {
         (self.data.screen_width as _, self.data.screen_height as _)
     }

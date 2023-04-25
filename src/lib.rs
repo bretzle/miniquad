@@ -129,6 +129,10 @@ impl Context {
         self.display_mut().set_fullscreen(fullscreen);
     }
 
+    pub fn set_title(&mut self, title: String) {
+        self.display_mut().set_title(title);
+    }
+
     /// Get current OS clipboard value
     pub fn clipboard_get(&mut self) -> Option<String> {
         self.display_mut().clipboard_get()

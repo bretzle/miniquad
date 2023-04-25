@@ -85,6 +85,9 @@ pub struct X11Display {
 }
 
 impl crate::native::NativeDisplay for X11Display {
+    fn set_title(&mut self, title: String) {
+        unsafe { self.update_window_title(self.window, &title) }
+    }
     fn screen_size(&self) -> (f32, f32) {
         (self.data.screen_width as _, self.data.screen_height as _)
     }

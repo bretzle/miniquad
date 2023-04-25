@@ -195,6 +195,13 @@ impl crate::native::NativeDisplay for Display {
     fn as_any(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn set_title(&mut self, title: String) {
+        unsafe {
+            let title = title.encode_utf16().collect::<Vec<u16>>();
+            SetWindowTextW(self.wnd, title.as_ptr());
+        }
+    }
 }
 
 struct WindowPayload {
