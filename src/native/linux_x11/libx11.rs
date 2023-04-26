@@ -856,12 +856,8 @@ pub type XGetWindowAttributes =
 pub type XMapWindow = unsafe extern "C" fn(_: *mut Display, _: Window) -> libc::c_int;
 pub type XLowerWindow = unsafe extern "C" fn(_: *mut Display, _: Window) -> libc::c_int;
 pub type XRaiseWindow = unsafe extern "C" fn(_: *mut Display, _: Window) -> libc::c_int;
-pub type XResizeWindow = unsafe extern "C" fn(
-    _: *mut Display,
-    _: Window,
-    _: libc::c_int,
-    _: libc::c_int,
-) -> libc::c_int;
+pub type XResizeWindow =
+    unsafe extern "C" fn(_: *mut Display, _: Window, _: libc::c_int, _: libc::c_int) -> libc::c_int;
 pub type XPending = unsafe extern "C" fn(_: *mut Display) -> libc::c_int;
 pub type XNextEvent = unsafe extern "C" fn(_: *mut Display, _: *mut XEvent) -> libc::c_int;
 pub type XGetKeyboardMapping = unsafe extern "C" fn(

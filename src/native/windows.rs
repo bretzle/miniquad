@@ -733,7 +733,7 @@ unsafe fn create_msg_window() -> (HWND, HDC) {
 }
 
 impl Display {
-    unsafe fn get_proc_address(&mut self, proc: &str) -> Option<unsafe extern "C" fn() -> ()> {
+    unsafe fn get_proc_address(&mut self, proc: &str) -> *const std::ffi::c_void {
         let proc = std::ffi::CString::new(proc).unwrap();
         let mut proc_ptr = (self.libopengl32.wglGetProcAddress)(proc.as_ptr());
         if proc_ptr.is_null() {
@@ -741,9 +741,9 @@ impl Display {
         }
         if proc_ptr.is_null() {
             eprintln!("Load GL func {:?} failed.", proc);
-            return None;
+            return 0 as _;
         }
-        Some(std::mem::transmute(proc_ptr))
+        proc_ptr as _
     }
 
     /// updates current window and framebuffer size from the window's client rect,
@@ -853,9 +853,8 @@ where
             conf.platform.swap_interval.unwrap_or(1),
         );
 
-        super::gl::load_gl_funcs(|proc| display.get_proc_address(proc));
-
-        let mut context = GraphicsContext::new(crate::gl::is_gl2());
+        let glow = glow::Context::from_loader_function(|s| display.get_proc_address(s));
+        let mut context = GraphicsContext::new(glow);
 
         let event_handler = f(context.with_display(&mut display));
 

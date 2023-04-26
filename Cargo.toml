@@ -36,3 +36,7 @@ objc = "0.2"
 glam = {version = "0.14", features = ["scalar-math"] }
 quad-rand = "0.1"
 
+[dependencies]
+bytemuck = "1.13.1"
+glow = "0.12.1"
+

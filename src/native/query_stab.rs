@@ -1,13 +1,11 @@
 #![allow(non_snake_case)]
 
-use crate::gl::{GLenum, GLint, GLuint, GLuint64};
-
 pub const GL_TIME_ELAPSED: u32 = 35007;
 
-pub unsafe fn glGetQueryObjectui64v(_id: GLuint, _pname: GLenum, _params: *mut GLuint64) {
+pub unsafe fn glGetQueryObjectui64v(_id: u32, _pname: u32, _params: *mut u64) {
     unimplemented!();
 }
 
-pub unsafe fn glGetQueryObjectiv(_id: GLuint, _pname: GLenum, _params: *mut GLint) {
+pub unsafe fn glGetQueryObjectiv(_id: u32, _pname: u32, _params: *mut i32) {
     unimplemented!();
 }

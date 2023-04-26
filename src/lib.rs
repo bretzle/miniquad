@@ -1,22 +1,17 @@
-pub mod conf;
-mod event;
-pub mod fs;
-pub mod graphics;
-
-pub mod native;
-
-#[cfg(feature = "log-impl")]
-pub mod log;
-
 pub use event::*;
+pub use graphics::GraphicsContext as Context;
+pub use native::NativeDisplay;
 
 pub use graphics::*;
 
+pub mod conf;
 mod default_icon;
-
-pub use native::{gl, NativeDisplay};
-
-pub use graphics::GraphicsContext as Context;
+mod event;
+pub mod fs;
+pub mod graphics;
+#[cfg(feature = "log-impl")]
+pub mod log;
+pub mod native;
 
 pub mod date {
     #[cfg(not(target_arch = "wasm32"))]

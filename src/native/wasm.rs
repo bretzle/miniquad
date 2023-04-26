@@ -80,9 +80,7 @@ impl NativeDisplay for WasmDisplay {
     }
 
     fn set_title(&mut self, title: String) {
-        unsafe {
-            sapp_set_title(title.as_ptr().cast())
-        }
+        unsafe { sapp_set_title(title.as_ptr().cast()) }
     }
 }
 
@@ -421,15 +419,14 @@ pub extern "C" fn touch(phase: u32, id: u32, x: f32, y: f32) {
 pub extern "C" fn focus(hasFocus: bool) {
     with(|globals| {
         if hasFocus {
-            globals.event_handler.window_restored_event(
-                globals.context.with_display(&mut globals.display)
-            );
+            globals
+                .event_handler
+                .window_restored_event(globals.context.with_display(&mut globals.display));
         } else {
-            globals.event_handler.window_minimized_event(
-                globals.context.with_display(&mut globals.display)
-            );
+            globals
+                .event_handler
+                .window_minimized_event(globals.context.with_display(&mut globals.display));
         }
-        
     });
 }
 

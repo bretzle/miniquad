@@ -1,11 +1,13 @@
 use miniquad::*;
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct Vec2 {
     x: f32,
     y: f32,
 }
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct Vertex {
     pos: Vec2,
     uv: Vec2,
