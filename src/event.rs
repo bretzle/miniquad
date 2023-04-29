@@ -228,13 +228,13 @@ pub trait EventHandler {
     fn raw_mouse_motion(&mut self, _ctx: &mut Context, _dx: f32, _dy: f32) {}
 
     /// Window has been minimized
-    /// Right now is only implemented on Android, X11 and wasm, 
+    /// Right now is only implemented on Android, X11 and wasm,
     /// On Andoid window_minimized_event is called on a Pause ndk callback
     /// On X11 and wasm it will be called on focus change events.
     fn window_minimized_event(&mut self, _ctx: &mut Context) {}
 
     /// Window has been restored
-    /// Right now is only implemented on Android, X11 and wasm, 
+    /// Right now is only implemented on Android, X11 and wasm,
     /// On Andoid window_minimized_event is called on a Pause ndk callback
     /// On X11 and wasm it will be called on focus change events.
     fn window_restored_event(&mut self, _ctx: &mut Context) {}
@@ -252,4 +252,34 @@ pub trait EventHandler {
     /// `ctx.dropped_file_path()`, and for wasm targets the file bytes
     /// can be requested with `ctx.dropped_file_bytes()`.
     fn files_dropped_event(&mut self, _ctx: &mut Context) {}
+
+    fn controller_button(&mut self, _button: GamepadButton, _pressed: bool) {}
+
+    fn controller_analog(&mut self, _axis: usize, _val: f32) {}
+}
+
+#[repr(usize)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+pub enum GamepadButton {
+    /// Also Cross
+    A = 0,
+    /// Also Circle
+    B,
+    /// Also Square
+    X,
+    /// Also Triangle
+    Y,
+    DpadUp,
+    DpadDown,
+    DpadRight,
+    DpadLeft,
+    BumperLeft,
+    BumperRight,
+    ThumbLeft,
+    ThumbRight,
+    Select,
+    Start,
+    Back,
+    Unknown,
+    Max,
 }

@@ -2,7 +2,7 @@ use crate::{
     conf::{Conf, Icon},
     event::{KeyMods, MouseButton},
     native::NativeDisplayData,
-    Context, CursorIcon, EventHandler, GraphicsContext,
+    Context, CursorIcon, EventHandler, GamepadButton, GraphicsContext,
 };
 
 use winapi::{
@@ -12,12 +12,22 @@ use winapi::{
         ntdef::NULL,
         windef::{HCURSOR, HDC, HICON, HWND, POINT, RECT},
         windowsx::{GET_X_LPARAM, GET_Y_LPARAM},
+        winerror::ERROR_SUCCESS,
     },
     um::{
         libloaderapi::{GetModuleHandleW, GetProcAddress},
         shellscalingapi::*,
         wingdi::*,
         winuser::*,
+        xinput::{
+            self, XInputEnable, XInputGetCapabilities, XInputGetState,
+            XINPUT_CAPABILITIES as XCapabilities, XINPUT_FLAG_GAMEPAD, XINPUT_GAMEPAD_A,
+            XINPUT_GAMEPAD_B, XINPUT_GAMEPAD_BACK, XINPUT_GAMEPAD_DPAD_DOWN,
+            XINPUT_GAMEPAD_DPAD_LEFT, XINPUT_GAMEPAD_DPAD_RIGHT, XINPUT_GAMEPAD_DPAD_UP,
+            XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_LEFT_THUMB, XINPUT_GAMEPAD_RIGHT_SHOULDER,
+            XINPUT_GAMEPAD_RIGHT_THUMB, XINPUT_GAMEPAD_START, XINPUT_GAMEPAD_X, XINPUT_GAMEPAD_Y,
+            XINPUT_STATE as XState,
+        },
     },
 };
 
@@ -868,6 +878,11 @@ where
         // so if there going to be some weird bugs someday in the future - check this out!
         SetWindowLongPtrA(wnd, GWLP_USERDATA, &mut p as *mut _ as isize);
 
+        let mut gamepad = None;
+        if conf.support_controllers {
+            XInputEnable(1);
+        }
+
         let mut done = false;
         while !(done || p.display.display_data.quit_ordered) {
             let mut msg: MSG = std::mem::zeroed();
@@ -880,6 +895,46 @@ where
                     DispatchMessageW(&mut msg as *mut _ as _);
                 }
             }
+
+            if conf.support_controllers {
+                let mut state = std::mem::zeroed();
+                let err = XInputGetState(0, &mut state);
+
+                if err == ERROR_SUCCESS {
+                    if gamepad.is_none() {
+                        let mut capabilities = std::mem::zeroed();
+                        let err = XInputGetCapabilities(0, XINPUT_FLAG_GAMEPAD, &mut capabilities);
+
+                        if err == ERROR_SUCCESS {
+                            gamepad = Some(GamePad::new(&capabilities));
+                        }
+                    }
+
+                    if let Some(gamepad) = &mut gamepad {
+                        gamepad.update(&state);
+
+                        let state = &gamepad.state;
+                        let info = &gamepad.info;
+
+                        for &button in &info.buttons {
+                            let now = state.digital_state[button as usize];
+                            let last = state.digital_state_prev[button as usize];
+                            if now != last {
+                                p.event_handler.controller_button(button, now && !last);
+                            }
+
+                            for (axis, val) in state.analog_state.iter().enumerate() {
+                                if val.abs() >= 0.05 {
+                                    p.event_handler.controller_analog(axis, *val);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    gamepad = None;
+                }
+            }
+
             p.event_handler
                 .update(p.context.with_display(&mut p.display));
             p.event_handler.draw(p.context.with_display(&mut p.display));
@@ -897,5 +952,195 @@ where
         }
         (p.display.libopengl32.wglDeleteContext)(gl_ctx);
         DestroyWindow(wnd);
+    }
+}
+
+struct GamePad {
+    info: ControllerInfo,
+    state: ControllerState,
+    buttons_map: [u16; MAX_DIGITAL],
+    sequence: u32,
+}
+
+impl GamePad {
+    fn new(capabilities: &XCapabilities) -> GamePad {
+        let mut name = String::from("XBOX360");
+        match capabilities.SubType {
+            xinput::XINPUT_DEVSUBTYPE_GAMEPAD => name.push_str(" gamepad"),
+            xinput::XINPUT_DEVSUBTYPE_WHEEL => name.push_str(" wheel"),
+            xinput::XINPUT_DEVSUBTYPE_ARCADE_STICK => name.push_str(" arcade stick"),
+            xinput::XINPUT_DEVSUBTYPE_FLIGHT_SICK => name.push_str(" flight stick"),
+            xinput::XINPUT_DEVSUBTYPE_DANCE_PAD => name.push_str(" dance pad"),
+            xinput::XINPUT_DEVSUBTYPE_GUITAR => name.push_str(" guitar"),
+            xinput::XINPUT_DEVSUBTYPE_DRUM_KIT => name.push_str(" drum"),
+            _ => (),
+        };
+        name.push_str(" controller");
+
+        let mut buttons = vec![];
+        let mut buttons_map = [0; MAX_DIGITAL as usize];
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_A != 0 {
+            buttons.push(GamepadButton::A);
+            buttons_map[GamepadButton::A as usize] = XINPUT_GAMEPAD_A;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_B != 0 {
+            buttons.push(GamepadButton::B);
+            buttons_map[GamepadButton::B as usize] = XINPUT_GAMEPAD_B;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_X != 0 {
+            buttons.push(GamepadButton::X);
+            buttons_map[GamepadButton::X as usize] = XINPUT_GAMEPAD_X;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_Y != 0 {
+            buttons.push(GamepadButton::Y);
+            buttons_map[GamepadButton::Y as usize] = XINPUT_GAMEPAD_Y;
+        }
+
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_START != 0 {
+            buttons.push(GamepadButton::Start);
+            buttons_map[GamepadButton::Start as usize] = XINPUT_GAMEPAD_START;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_BACK != 0 {
+            buttons.push(GamepadButton::Back);
+            buttons_map[GamepadButton::Back as usize] = XINPUT_GAMEPAD_BACK;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB != 0 {
+            buttons.push(GamepadButton::ThumbLeft);
+            buttons_map[GamepadButton::ThumbLeft as usize] = XINPUT_GAMEPAD_LEFT_THUMB;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB != 0 {
+            buttons.push(GamepadButton::ThumbRight);
+            buttons_map[GamepadButton::ThumbRight as usize] = XINPUT_GAMEPAD_RIGHT_THUMB;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER != 0 {
+            buttons.push(GamepadButton::BumperLeft);
+            buttons_map[GamepadButton::BumperLeft as usize] = XINPUT_GAMEPAD_LEFT_SHOULDER;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER != 0 {
+            buttons.push(GamepadButton::BumperRight);
+            buttons_map[GamepadButton::BumperRight as usize] = XINPUT_GAMEPAD_RIGHT_SHOULDER;
+        }
+
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN != 0 {
+            buttons.push(GamepadButton::DpadDown);
+            buttons_map[GamepadButton::DpadDown as usize] = XINPUT_GAMEPAD_DPAD_DOWN;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT != 0 {
+            buttons.push(GamepadButton::DpadLeft);
+            buttons_map[GamepadButton::DpadLeft as usize] = XINPUT_GAMEPAD_DPAD_LEFT;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT != 0 {
+            buttons.push(GamepadButton::DpadRight);
+            buttons_map[GamepadButton::DpadRight as usize] = XINPUT_GAMEPAD_DPAD_RIGHT;
+        }
+        if capabilities.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP != 0 {
+            buttons.push(GamepadButton::DpadUp);
+            buttons_map[GamepadButton::DpadUp as usize] = XINPUT_GAMEPAD_DPAD_UP;
+        }
+
+        let mut analog_count = 0;
+        if capabilities.Gamepad.bLeftTrigger != 0 {
+            analog_count += 1;
+        }
+        if capabilities.Gamepad.bRightTrigger != 0 {
+            analog_count += 1;
+        }
+        if capabilities.Gamepad.sThumbLX != 0 {
+            analog_count += 1;
+        }
+        if capabilities.Gamepad.sThumbLY != 0 {
+            analog_count += 1;
+        }
+        if capabilities.Gamepad.sThumbRX != 0 {
+            analog_count += 1;
+        }
+        if capabilities.Gamepad.sThumbRY != 0 {
+            analog_count += 1;
+        }
+
+        GamePad {
+            info: ControllerInfo {
+                name,
+                buttons,
+                analog_count,
+            },
+            state: ControllerState {
+                status: ControllerStatus::Connected,
+                ..ControllerState::new()
+            },
+            buttons_map,
+            sequence: 0,
+        }
+    }
+
+    fn update(&mut self, state: &XState) {
+        self.state.digital_state_prev = self.state.digital_state;
+
+        if state.dwPacketNumber == self.sequence {
+            // no change in state
+            return;
+        }
+
+        self.sequence = state.dwPacketNumber;
+        for button in &self.info.buttons {
+            self.state.digital_state[*button as usize] =
+                state.Gamepad.wButtons & self.buttons_map[*button as usize] != 0;
+        }
+        self.state.analog_state[0] =
+            (state.Gamepad.sThumbLX as i32 + 32768) as f32 / 65535.0 * 2.0 - 1.0;
+        self.state.analog_state[1] =
+            (state.Gamepad.sThumbLY as i32 + 32768) as f32 / 65535.0 * 2.0 - 1.0;
+        self.state.analog_state[2] =
+            (state.Gamepad.sThumbRX as i32 + 32768) as f32 / 65535.0 * 2.0 - 1.0;
+        self.state.analog_state[3] =
+            (state.Gamepad.sThumbRY as i32 + 32768) as f32 / 65535.0 * 2.0 - 1.0;
+    }
+}
+
+const MAX_DEVICES: usize = 8;
+const MAX_DIGITAL: usize = 16;
+const MAX_ANALOG: usize = 8;
+
+#[derive(Debug, Clone)]
+struct ControllerInfo {
+    name: String,
+    buttons: Vec<GamepadButton>,
+    analog_count: usize,
+}
+
+impl ControllerInfo {
+    fn new() -> Self {
+        Self {
+            name: "null".to_owned(),
+            analog_count: 0,
+            buttons: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ControllerStatus {
+    Disconnected,
+    Connected,
+}
+
+#[derive(Debug)]
+struct ControllerState {
+    status: ControllerStatus,
+    sequence: usize,
+    digital_state_prev: [bool; GamepadButton::Max as usize],
+    digital_state: [bool; GamepadButton::Max as usize],
+    analog_state: [f32; MAX_ANALOG],
+}
+
+impl ControllerState {
+    const fn new() -> Self {
+        Self {
+            status: ControllerStatus::Disconnected,
+            sequence: 0,
+            digital_state: [false; GamepadButton::Max as usize],
+            digital_state_prev: [false; GamepadButton::Max as usize],
+            analog_state: [0.0; MAX_ANALOG],
+        }
     }
 }
